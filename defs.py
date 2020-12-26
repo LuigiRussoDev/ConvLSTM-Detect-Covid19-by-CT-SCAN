@@ -117,13 +117,12 @@ def plot_confusion_matrix(cm, classes,
 
 # Define the model
 def MiniModel(input_shape):
-
     images = Input(input_shape)
-    net = ConvLSTM2D(filters=32, kernel_size=(3, 1), padding="same",activation='relu', return_sequences=True, data_format='channels_first')(images)
+    net = ConvLSTM2D(filters=32, kernel_size=(3, 3), activation='relu',
+                     return_sequences=True, use_bias=False, data_format='channels_first')(images)
     net = BatchNormalization()(net)
     net = Flatten()(net)
-
-    net = Dense(2,activation='softmax')(net)
+    net = Dense(2,activation='sigmoid')(net)
     model = Model(inputs=images, outputs=net)
 
 

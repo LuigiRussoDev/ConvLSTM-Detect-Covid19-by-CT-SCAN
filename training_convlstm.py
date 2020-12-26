@@ -7,7 +7,7 @@ from sklearn.metrics import classification_report
 from defs import *
 
 
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+#os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 
 def split_sequences(sequence, n_steps):
@@ -97,7 +97,7 @@ print("->>> testY: ",y_test.shape," train Y",y_train.shape)
 print("n timesteps: ",n_timesteps,"n features ",n_features,"n output ",n_outputs)
 
 
-sgd = optimizers.SGD(lr=0.0001, momentum=0.0, decay=0.0, nesterov=False)
+sgd = optimizers.SGD(lr=0.0001, momentum=0.9, decay=0.0, nesterov=False)
 
 epochs = 60
 bs = 16
