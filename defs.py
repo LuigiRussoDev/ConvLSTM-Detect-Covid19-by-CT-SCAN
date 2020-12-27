@@ -1,7 +1,9 @@
-from keras.layers import Input, MaxPooling2D, BatchNormalization, Activation, Conv2D, Flatten, Dense, add, Dropout, \
-    AveragePooling2D
-from keras.layers.convolutional_recurrent import ConvLSTM2D
-from keras.models import Model, Sequential
+import tensorflow as tf
+from tensorflow.keras.layers import Input, MaxPooling2D, BatchNormalization, Activation, Conv2D, Flatten, Dense, add, Dropout, \
+    AveragePooling2D,Conv3D,MaxPooling3D
+
+from tensorflow.keras.layers import ConvLSTM2D
+from tensorflow.keras.models import Model, Sequential
 import matplotlib.pyplot as plt
 import numpy as np
 import itertools
@@ -115,14 +117,24 @@ def plot_confusion_matrix(cm, classes,
     plt.ylim(len(np.unique(y)) - 0.5, -0.5)  # ADD THIS LINE
     plt.savefig("confusion_matrix_big.png")
 
-# Define the model
+
 def MiniModel(input_shape):
     images = Input(input_shape)
-    net = ConvLSTM2D(filters=32, kernel_size=(3, 3), activation='relu',
-                     return_sequences=True, use_bias=False, data_format='channels_first')(images)
+
+    net = ConvLSTM2D(filters=64, kernel_size=(3, 3), activation='relu',
+                     return_sequences=True, use_bias=False, data_format='channels_last')(images)
     net = BatchNormalization()(net)
+
+    net = ConvLSTM2D(filters=128, kernel_size=(3, 3), activation='relu',
+                     return_sequences=True, use_bias=False, data_format='channels_last')(net)
+    net = BatchNormalization()(net)
+    
+    net = ConvLSTM2D(filters=256, kernel_size=(3, 3), activation='relu',
+                     return_sequences=True, use_bias=False, data_format='channels_last')(net)
+    net = BatchNormalization()(net)
+
     net = Flatten()(net)
-    net = Dense(2,activation='sigmoid')(net)
+    net = Dense(1,activation='sigmoid')(net)
     model = Model(inputs=images, outputs=net)
 
 

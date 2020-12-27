@@ -1,4 +1,3 @@
-import keras
 from math import ceil
 import os
 from sklearn.metrics import confusion_matrix
@@ -41,8 +40,7 @@ y_train = np.load('y_train.npy')
 y_test = np.load('y_test.npy')
 X_test = np.load('X_test.npy')
 
-
-print("New Shape: \n")
+print("Shape: \n")
 print("train_x: ", X_train.shape)
 print("y train ",y_train.shape)
 print("x_test ",X_test.shape)
@@ -57,29 +55,14 @@ print("++++***shape dopo lo split [TEST] ",X_test.shape,y_test.shape)
 y_train = y_train[:,0,0,0]
 y_test = y_test[:,0,0,0]
 
-
-
-# normalize the data
-'''X_train = X_train.astype('float32') / 255
-X_test = X_test.astype('float32') / 255
-X_train = X_train - X_train.mean()
-X_test = X_test - X_test.mean()
-X_train = X_train / X_train.std(axis=0)
-X_test = X_test / X_test.std(axis=0)'''
-
-
-y_train = y_train - 1
-y_test = y_test - 1
-y_train = keras.utils.to_categorical(y_train, 2)
-y_test = keras.utils.to_categorical(y_test, 2)
-
-
-n_timesteps, n_features, n_outputs = X_train.shape[1], X_train.shape[2], y_train.shape[1]
+#n_timesteps, n_features, n_outputs = X_train.shape[1], X_train.shape[2], y_train.shape[1]
+n_features = 32
 
 
 n_steps, n_length = 5, 32
-X_train = X_train.reshape((X_train.shape[0], n_steps, 1, n_length, n_features))
-X_test = X_test.reshape((X_test.shape[0], n_steps, 1, n_length, n_features))
+X_train = X_train.reshape((X_train.shape[0], n_steps, n_length, n_features, 1))
+X_test = X_test.reshape((X_test.shape[0], n_steps, n_length, n_features, 1))
+
 '''
 ottengo:
 X_train = 21821,5,1,32,32
@@ -88,13 +71,14 @@ test x = 9347,5,1,32,32
 '''
 
 
-input_shape=(n_steps,1,n_length,n_features)
+input_shape=(n_steps,n_length,n_features,1)
+
 model = MiniModel(input_shape)
 
 model.summary()
+
 print("->>> trainX: ",X_train.shape,"testX ",X_test.shape,"N features ",n_features)
 print("->>> testY: ",y_test.shape," train Y",y_train.shape)
-print("n timesteps: ",n_timesteps,"n features ",n_features,"n output ",n_outputs)
 
 
 sgd = optimizers.SGD(lr=0.0001, momentum=0.9, decay=0.0, nesterov=False)
@@ -105,7 +89,7 @@ steps_per_epoch = ceil(10922 / bs)
 
 #opt = keras.optimizers.Adam(learning_rate=0.01)
 
-model.compile(loss='binary_crossentropy', optimizer=sgd, metrics=['accuracy'])
+model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
 history = model.fit(X_train, y_train, epochs=epochs,batch_size=bs,validation_data=(X_test,y_test))
 
