@@ -85,7 +85,7 @@ steps_per_epoch = ceil(10922 / bs)
 
 model.compile(loss='binary_crossentropy', optimizer=sgd, metrics=['accuracy'])
 
-
+#TODO: CHECKPOINT SOLO COME TEST. DA COMPLETARE IN CASO DI RESTORE DEL TRAINING
 checkpointer = tf.keras.callbacks.ModelCheckpoint(filepath="weights.hdf5", verbose=1)
 
 history = model.fit(X_train, y_train, epochs=epochs,batch_size=bs,validation_data=(X_test,y_test),callbacks=[checkpointer])
