@@ -5,8 +5,7 @@ from keras import optimizers
 from sklearn.metrics import classification_report
 from defs import *
 
-
-#os.environ["CUDA_VISIBLE_DEVICES"]="1"
+#os.environ["CUDA_VISIBLE_DEVICES"]="0,1"
 
 
 def split_sequences(sequence, n_steps):
@@ -20,12 +19,9 @@ def split_sequences(sequence, n_steps):
         y.append(seq_y)
     return np.array(X), np.array(y)
 
-
 train_dir = "processed/train/"
 test_dir = "processed/test/"
 
-img_height , img_width = 32, 32
-seq_len = 5
 
 '''train_x, train_y = get_data(train_dir)
 test_x, test_y= get_data(test_dir)
@@ -46,6 +42,8 @@ print("y train ",y_train.shape)
 print("x_test ",X_test.shape)
 print("y test",y_test.shape)
 
+seq_len = 10
+
 X_train,y_train = split_sequences(X_train, seq_len)
 print("++++***shape dopo lo split [TRAIN] ",X_train.shape,y_train.shape)
 
@@ -56,12 +54,13 @@ y_train = y_train[:,0,0,0]
 y_test = y_test[:,0,0,0]
 
 #n_timesteps, n_features, n_outputs = X_train.shape[1], X_train.shape[2], y_train.shape[1]
-n_features = 32
 
+n_steps = 10
 
-n_steps, n_length = 5, 32
-X_train = X_train.reshape((X_train.shape[0], n_steps, n_length, n_features, 1))
-X_test = X_test.reshape((X_test.shape[0], n_steps, n_length, n_features, 1))
+img_width, img_height = 128, 128
+
+X_train = X_train.reshape((X_train.shape[0], n_steps, img_width, img_height, 1))
+X_test = X_test.reshape((X_test.shape[0], n_steps, img_width, img_height, 1))
 
 '''
 ottengo:
@@ -71,15 +70,10 @@ test x = 9347,5,1,32,32
 '''
 
 
-input_shape=(n_steps,n_length,n_features,1)
+input_shape=(n_steps,img_width,img_height,1)
 
 model = MiniModel(input_shape)
-
 model.summary()
-
-print("->>> trainX: ",X_train.shape,"testX ",X_test.shape,"N features ",n_features)
-print("->>> testY: ",y_test.shape," train Y",y_train.shape)
-
 
 sgd = optimizers.SGD(lr=0.0001, momentum=0.9, decay=0.0, nesterov=False)
 
@@ -89,9 +83,12 @@ steps_per_epoch = ceil(10922 / bs)
 
 #opt = keras.optimizers.Adam(learning_rate=0.01)
 
-model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+model.compile(loss='binary_crossentropy', optimizer=sgd, metrics=['accuracy'])
 
-history = model.fit(X_train, y_train, epochs=epochs,batch_size=bs,validation_data=(X_test,y_test))
+
+checkpointer = tf.keras.callbacks.ModelCheckpoint(filepath="weights.hdf5", verbose=1)
+
+history = model.fit(X_train, y_train, epochs=epochs,batch_size=bs,validation_data=(X_test,y_test),callbacks=[checkpointer])
 
 plt.plot(history.history['accuracy'])
 plt.plot(history.history['val_accuracy'])

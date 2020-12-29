@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras.layers import Input, MaxPooling2D, BatchNormalization, Activation, Conv2D, Flatten, Dense, add, Dropout, \
-    AveragePooling2D,Conv3D,MaxPooling3D
+    AveragePooling2D,Conv3D,MaxPooling3D,GlobalAveragePooling3D
 
 from tensorflow.keras.layers import ConvLSTM2D
 from tensorflow.keras.models import Model, Sequential
@@ -18,6 +18,18 @@ from skimage.transform import resize
 from tqdm import tqdm
 
 
+def MiniModel(input_shape):
+    images = Input(input_shape)
+
+    net = ConvLSTM2D(filters=32, kernel_size=(3, 3), activation='relu',
+                     return_sequences=True, use_bias=False, data_format='channels_last')(images)
+    net = BatchNormalization()(net)
+    net = Flatten()(net)
+    net = Dense(1,activation='sigmoid')(net)
+    model = Model(inputs=images, outputs=net)
+
+
+    return model
 
 def roc_each_classes(test_y,y_pred):
     n_classes = 2
@@ -118,29 +130,6 @@ def plot_confusion_matrix(cm, classes,
     plt.savefig("confusion_matrix_big.png")
 
 
-def MiniModel(input_shape):
-    images = Input(input_shape)
-
-    net = ConvLSTM2D(filters=64, kernel_size=(3, 3), activation='relu',
-                     return_sequences=True, use_bias=False, data_format='channels_last')(images)
-    net = BatchNormalization()(net)
-
-    net = ConvLSTM2D(filters=128, kernel_size=(3, 3), activation='relu',
-                     return_sequences=True, use_bias=False, data_format='channels_last')(net)
-    net = BatchNormalization()(net)
-    
-    net = ConvLSTM2D(filters=256, kernel_size=(3, 3), activation='relu',
-                     return_sequences=True, use_bias=False, data_format='channels_last')(net)
-    net = BatchNormalization()(net)
-
-    net = Flatten()(net)
-    net = Dense(1,activation='sigmoid')(net)
-    model = Model(inputs=images, outputs=net)
-
-
-    return model
-
-
 def get_data(folder):
     X = []
     y = []
@@ -149,15 +138,13 @@ def get_data(folder):
         if not folderName.startswith('.'):
             if folderName in ['normal']:
                 label = 0
-            elif folderName in ['covid']:
+            else: #caso covid folder
                 label = 1
-            else:
-                label = 2
             for image_filename in tqdm(os.listdir(folder + folderName)):
                 #img_file = cv2.imread(folder + folderName + '/' + image_filename,-1)
                 img_file = tiff.imread(folder + folderName + '/' + image_filename)
                 if img_file is not None:
-                    img_file = skimage.transform.resize(img_file, (32,32, 1))
+                    img_file = skimage.transform.resize(img_file, (128,128, 1))
                     # img_file = scipy.misc.imresize(arr=img_file, size=(150, 150, 3))
                     img_arr = np.asarray(img_file)
                     X.append(img_arr)
