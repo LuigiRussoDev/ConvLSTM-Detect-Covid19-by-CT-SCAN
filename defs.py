@@ -24,11 +24,14 @@ def MiniModel(input_shape):
     net = ConvLSTM2D(filters=32, kernel_size=(3, 3), activation='relu',
                      return_sequences=True, use_bias=False, data_format='channels_last')(images)
     net = BatchNormalization()(net)
+
+
+    '''net = Conv3D(filters=32, kernel_size=3, activation="relu" , data_format='channels_last')(images)
+    net = BatchNormalization()(net)'''
+
     net = Flatten()(net)
     net = Dense(1,activation='sigmoid')(net)
     model = Model(inputs=images, outputs=net)
-
-
     return model
 
 def roc_each_classes(test_y,y_pred):
@@ -144,7 +147,7 @@ def get_data(folder):
                 #img_file = cv2.imread(folder + folderName + '/' + image_filename,-1)
                 img_file = tiff.imread(folder + folderName + '/' + image_filename)
                 if img_file is not None:
-                    img_file = skimage.transform.resize(img_file, (128,128, 1))
+                    img_file = skimage.transform.resize(img_file, (64,64, 1))
                     # img_file = scipy.misc.imresize(arr=img_file, size=(150, 150, 3))
                     img_arr = np.asarray(img_file)
                     X.append(img_arr)
