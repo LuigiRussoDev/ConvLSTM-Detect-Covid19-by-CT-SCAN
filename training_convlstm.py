@@ -6,56 +6,111 @@ from sklearn.metrics import confusion_matrix
 from keras import optimizers
 from sklearn.metrics import classification_report
 from defs import *
+from matplotlib import pyplot
 from tensorflow.keras.callbacks import ModelCheckpoint
+import time
+
 os.environ["CUDA_VISIBLE_DEVICES"]="0,1"
 
 
 def split_sequences(sequence, seq_yy, n_steps):
     X, y = list(), list()
+    print("Lunghezza sequenza: ",len(sequence))
     for i in range(len(sequence)):
         end_ix = i + n_steps
         if end_ix > len(sequence)-1:
             break
         seq_x, seq_y = sequence[i:end_ix], seq_yy[i:end_ix]
-        X.append(seq_x)
+        #time.sleep(2)
+        '''print("Giro: ",i,
+              "Shape della seq ",seq_x.shape,
+              "con range: ",i," - ",end_ix,
+              "Label: ",seq_y
+              )'''
+        #Voglio stampare le nstep immagini della sequenza
+        '''for j in range(n_steps):
+            plt.imshow(seq_x[j])
+            plt.show()'''
+        X.append(seq_x) #Ad ogni Giro, X sarà: img_i-esima, [5 immagini in seq], 128,128,3
         y.append(seq_y)
     return np.array(X) , np.array(y)
+
+def build_dataset_train(train_x,train_y):
+    # Scrittura del Dataset
+    f_t = h5py.File('dati_128/X_train.hdf5', 'w')
+    X_train = f_t.create_dataset("train_X", data=train_x)
+    f_t.close()
+
+    f = h5py.File('dati_128/y_train.hdf5', 'w')
+    y_train = f.create_dataset("y_train", data=train_y)
+    f.close()
+
+    return  X_train,y_train
+
+def build_dataset_test(test_x,test_y):
+    f = h5py.File('dati_128/X_test.hdf5', 'w')
+    X_test = f.create_dataset("X_test", data=test_x)
+    f.close()
+
+    f = h5py.File('dati_128/y_test.hdf5', 'w')
+    y_test = f.create_dataset("y_test", data=test_y)
+    f.close()
+
+    return X_test,y_test
+
 
 train_dir = "processed/train/"
 test_dir = "processed/test/"
 
-
 '''train_x, train_y = get_data(train_dir)
-test_x, test_y= get_data(test_dir)'''
+test_x, test_y= get_data(test_dir)
 
-#Scrittura del Dataset
-'''f = h5py.File('dati_64/X_train.hdf5', 'w')
-X_train = f.create_dataset("train_X",data=train_x)
-
-f = h5py.File('dati_64/y_train.hdf5', 'w')
-y_train = f.create_dataset("y_train",data=train_y)
-
-f = h5py.File('dati_64/X_test.hdf5', 'w')
-X_test = f.create_dataset("X_test",data=test_x)
-
-f = h5py.File('dati_64/y_test.hdf5', 'w')
-y_test = f.create_dataset("y_test",data=test_y)'''
+X_train, y_train = build_dataset_train(train_x,train_y)
+X_test, y_test = build_dataset_test(test_x,test_y)'''
 
 #Lettura dei datasets
-X_train_f = h5py.File('dati_64/X_train.hdf5', 'r')
-X_train = X_train_f['train_X']
+X_train_f = h5py.File('dati_128/X_train.hdf5', 'r')
+X_train = X_train_f.get('train_X').value
 
-Y_train_f = h5py.File('dati_64/y_train.hdf5', 'r')
-y_train = Y_train_f['y_train']
+Y_train_f = h5py.File('dati_128/y_train.hdf5', 'r')
+y_train = Y_train_f.get('y_train').value
 
-X_test_f = h5py.File('dati_64/X_test.hdf5', 'r')
-X_test = X_test_f['X_test']
+X_test_f = h5py.File('dati_128/X_test.hdf5', 'r')
+X_test = X_test_f.get('X_test').value
 
-Y_test_f = h5py.File('dati_64/y_test.hdf5', 'r')
-y_test = Y_test_f['y_test']
+Y_test_f = h5py.File('dati_128/y_test.hdf5', 'r')
+y_test = Y_test_f.get('y_test').value
 
+#NON CONSIDERARE - CREAZIONE DI UN SUBSET DI DATI E SALVATAGGIO
+'''x_train_sub = X_train[1:20,:,:,:]
+y_train_sub = y_train[1:20,]
 
+x_test_sub = X_test[1:5,:,:,:]
+y_test_sub = y_test[1:5,]
 
+np.save("x_train_sub.npy",x_train_sub)
+np.save("y_train_sub.npy",y_train_sub)
+np.save("x_test_sub.npy",x_test_sub)
+np.save("y_test_sub.npy",y_test_sub)
+
+'''
+
+'''print("App_train x ",x_train_sub.shape)
+print("App_train y",y_train_sub.shape)
+print("App_test x ",x_test_sub.shape)
+print("App_test y ",y_test_sub.shape)
+
+x_train_sub = np.load("x_train_sub.npy")
+y_train_sub = np.load("y_train_sub.npy")
+x_test_sub = np.load("x_test_sub.npy")
+y_test_sub = np.load("y_test_sub.npy")
+
+X_train = x_train_sub
+y_train = y_train_sub
+X_test = x_test_sub
+y_test = y_test_sub
+
+'''
 
 print("Shape: \n")
 print("train_x: ", X_train.shape)
@@ -63,25 +118,25 @@ print("y train ",y_train.shape)
 print("x_test ",X_test.shape)
 print("y test",y_test.shape)
 
-seq_len = 10
+#C'è un problema con le grandi sequenza. Se seleziono una sequenza larga, il SW viene automaticamente killato
+seq_len = 15
 
 print("\n\n")
 X_train, y_train = split_sequences(X_train,y_train, seq_len)
 y_train = y_train[:,0]
-#print("Y train ",y_train[1:100])
 print("++++***shape dopo lo split [TRAIN X & Y] ",X_train.shape,y_train.shape)
-#print(y_train[1:100])
 
-X_test,y_test = split_sequences(X_test,y_train, seq_len)
+
+X_test,y_test = split_sequences(X_test,y_test, seq_len)
 y_test = y_test[:,0]
-#print("Y test ",y_test[1:100])
 print("++++***shape dopo lo split [TEST X & Y] ",X_test.shape,y_test.shape)
 
 
-img_width, img_height = 64, 64
+img_width, img_height = 128,128
 
-X_train = X_train.reshape((X_train.shape[0], seq_len, img_width, img_height, 1))
-X_test = X_test.reshape((X_test.shape[0], seq_len, img_width, img_height, 1))
+X_train = X_train.reshape(X_train.shape[0],seq_len, img_width, img_height, 1)
+X_test = X_test.reshape(X_test.shape[0], seq_len, img_width, img_height, 1)
+#Provo a stampare la prima immagine alla posizione X(1,5,128,128,1)
 
 print("\n\n")
 print("Dopo il reshape [X_train]: ",X_train.shape)
@@ -101,14 +156,7 @@ steps_per_epoch = ceil(10922 / bs)
 
 #opt = keras.optimizers.Adam(learning_rate=0.01)
 
-model.compile(loss='binary_crossentropy', optimizer=sgd, metrics=['accuracy'])
-path_checkpoint = "best_model.hdf5"
-
-#TODO: CHECKPOINT SOLO COME TEST. DA COMPLETARE IN CASO DI RESTORE DEL TRAINING
-checkpointer = ModelCheckpoint(path_checkpoint, verbose=1,
-    save_best_only=False, save_weights_only=False, mode='auto', save_freq='epoch')
-model.save(path_checkpoint.format(epoch=0))
-
+model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 history = model.fit(X_train, y_train, epochs=epochs,batch_size=bs,validation_data=(X_test,y_test))
 
 plt.plot(history.history['accuracy'])
@@ -135,10 +183,6 @@ accuracy = model.evaluate(x=X_test, y=y_test, verbose=0)
 target_names = ['Normal', 'Covid']
 
 y_pred = model.predict(X_test)
-
-'''fpr_keras, tpr_keras, thresholds_keras = roc_curve(test_y, y_pred)
-auc_keras = auc(fpr_keras, tpr_keras)'''
-
 Y_true = np.argmax(y_test, axis=1)
 Y_pred_classes = np.argmax(y_pred, axis=1)
 

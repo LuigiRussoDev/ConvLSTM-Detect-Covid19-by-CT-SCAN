@@ -17,16 +17,18 @@ import skimage
 from skimage.transform import resize
 from tqdm import tqdm
 
-
 def MiniModel(input_shape):
     images = Input(input_shape)
+
 
     net = ConvLSTM2D(filters=32, kernel_size=(3, 3), activation='relu',
                      return_sequences=True, use_bias=False, data_format='channels_last')(images)
     net = BatchNormalization()(net)
 
-
-    '''net = Conv3D(filters=32, kernel_size=3, activation="relu" , data_format='channels_last')(images)
+    '''net = Conv2D(filters=32,kernel_size=(3,3),padding="same",activation='relu')(images)
+    net = BatchNormalization()(net)
+    net = MaxPooling2D(pool_size=(2,2))(net)
+    net = Conv2D(filters=64,kernel_size=(3,3),padding="same",activation='relu')(net)
     net = BatchNormalization()(net)'''
 
     net = Flatten()(net)
@@ -147,7 +149,7 @@ def get_data(folder):
                 #img_file = cv2.imread(folder + folderName + '/' + image_filename,-1)
                 img_file = tiff.imread(folder + folderName + '/' + image_filename)
                 if img_file is not None:
-                    img_file = skimage.transform.resize(img_file, (64,64, 1))
+                    img_file = skimage.transform.resize(img_file, (128,128, 1))
                     # img_file = scipy.misc.imresize(arr=img_file, size=(150, 150, 3))
                     img_arr = np.asarray(img_file)
                     X.append(img_arr)
