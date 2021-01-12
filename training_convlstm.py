@@ -10,30 +10,19 @@ from matplotlib import pyplot
 from tensorflow.keras.callbacks import ModelCheckpoint
 import time
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0,1"
+#os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
+for device in tf.config.experimental.list_physical_devices("GPU"):
+    tf.config.experimental.set_memory_growth(device, True)
 
 def split_sequences(sequence, seq_yy, n_steps):
-    X, y = list(), list()
     print("Lunghezza sequenza: ",len(sequence))
-    for i in range(len(sequence)):
+    perm = np.random.permutation(len(sequence) - n_steps)  # Shuffle elements
+
+    for i in perm:
         end_ix = i + n_steps
-        if end_ix > len(sequence)-1:
-            break
-        seq_x, seq_y = sequence[i:end_ix], seq_yy[i:end_ix]
-        #time.sleep(2)
-        '''print("Giro: ",i,
-              "Shape della seq ",seq_x.shape,
-              "con range: ",i," - ",end_ix,
-              "Label: ",seq_y
-              )'''
-        #Voglio stampare le nstep immagini della sequenza
-        '''for j in range(n_steps):
-            plt.imshow(seq_x[j])
-            plt.show()'''
-        X.append(seq_x) #Ad ogni Giro, X sarà: img_i-esima, [5 immagini in seq], 128,128,3
-        y.append(seq_y)
-    return np.array(X) , np.array(y)
+        seq_x, seq_y = sequence[None,i:end_ix], seq_yy[i:end_ix]
+        yield np.array(seq_x, dtype=np.float32) , np.array(seq_y, dtype=np.float32)
 
 def build_dataset_train(train_x,train_y):
     # Scrittura del Dataset
@@ -69,16 +58,16 @@ X_train, y_train = build_dataset_train(train_x,train_y)
 X_test, y_test = build_dataset_test(test_x,test_y)'''
 
 #Lettura dei datasets
-X_train_f = h5py.File('dati_128/X_train.hdf5', 'r')
+X_train_f = h5py.File('dati_64/X_train.hdf5', 'r')
 X_train = X_train_f.get('train_X').value
 
-Y_train_f = h5py.File('dati_128/y_train.hdf5', 'r')
+Y_train_f = h5py.File('dati_64/y_train.hdf5', 'r')
 y_train = Y_train_f.get('y_train').value
 
-X_test_f = h5py.File('dati_128/X_test.hdf5', 'r')
+X_test_f = h5py.File('dati_64/X_test.hdf5', 'r')
 X_test = X_test_f.get('X_test').value
 
-Y_test_f = h5py.File('dati_128/y_test.hdf5', 'r')
+Y_test_f = h5py.File('dati_64/y_test.hdf5', 'r')
 y_test = Y_test_f.get('y_test').value
 
 #NON CONSIDERARE - CREAZIONE DI UN SUBSET DI DATI E SALVATAGGIO
@@ -120,9 +109,19 @@ print("y test",y_test.shape)
 
 #C'è un problema con le grandi sequenza. Se seleziono una sequenza larga, il SW viene automaticamente killato
 seq_len = 15
-
 print("\n\n")
-X_train, y_train = split_sequences(X_train,y_train, seq_len)
+
+#Utilizzo dimensioni 64x64 come prova. Qunado il training si avvierà, caricherò le 256x256
+train_dataset = tf.data.Dataset.from_generator(split_sequences, (tf.float32, tf.float32), output_shapes=([None,15,64, 64, 1], [15,]), args=(X_train, y_train, seq_len))
+test_dataset = tf.data.Dataset.from_generator(split_sequences, (tf.float32, tf.float32), output_shapes=([None,15,64, 64, 1], [15,]), args=(X_test, y_test, seq_len))
+
+
+'''for Xb, yb in train_dataset:
+    print(Xb.shape, yb.shape) #Ottengo (15,64,64,1), (15,)
+    print(type(train_dataset))
+    time.sleep(2)'''
+
+'''X_train, y_train = split_sequences(X_train,y_train, seq_len)
 y_train = y_train[:,0]
 print("++++***shape dopo lo split [TRAIN X & Y] ",X_train.shape,y_train.shape)
 
@@ -130,9 +129,6 @@ print("++++***shape dopo lo split [TRAIN X & Y] ",X_train.shape,y_train.shape)
 X_test,y_test = split_sequences(X_test,y_test, seq_len)
 y_test = y_test[:,0]
 print("++++***shape dopo lo split [TEST X & Y] ",X_test.shape,y_test.shape)
-
-
-img_width, img_height = 128,128
 
 X_train = X_train.reshape(X_train.shape[0],seq_len, img_width, img_height, 1)
 X_test = X_test.reshape(X_test.shape[0], seq_len, img_width, img_height, 1)
@@ -143,7 +139,9 @@ print("Dopo il reshape [X_train]: ",X_train.shape)
 print("Dopo il reshape [X_test]: ",X_test.shape)
 print("\n\n")
 
+'''
 
+img_width, img_height = 64,64
 input_shape=(seq_len,img_width,img_height,1)
 model = MiniModel(input_shape)
 model.summary()
@@ -157,7 +155,7 @@ steps_per_epoch = ceil(10922 / bs)
 #opt = keras.optimizers.Adam(learning_rate=0.01)
 
 model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-history = model.fit(X_train, y_train, epochs=epochs,batch_size=bs,validation_data=(X_test,y_test))
+history = model.fit(train_dataset, epochs=epochs, validation_data=test_dataset)
 
 plt.plot(history.history['accuracy'])
 plt.plot(history.history['val_accuracy'])
