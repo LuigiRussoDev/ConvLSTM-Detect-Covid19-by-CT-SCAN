@@ -1,5 +1,7 @@
 from math import ceil
 import os
+
+import PIL
 import h5py
 import numpy as np
 from sklearn.metrics import confusion_matrix
@@ -9,6 +11,8 @@ from defs import *
 from matplotlib import pyplot
 from tensorflow.keras.callbacks import ModelCheckpoint
 import time
+from PIL import Image
+import cv2
 
 #os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
@@ -19,29 +23,35 @@ def split_sequences(sequence, seq_yy, n_steps):
     print("Lunghezza sequenza: ",len(sequence))
     perm = np.random.permutation(len(sequence) - n_steps)  # Shuffle elements
 
-    for i in perm:
+    #for i in perm:
+    for i in range(len(sequence)):
         end_ix = i + n_steps
+        #print("Inizio: ",i,"END_IX ",end_ix)
+        #time.sleep(2)
         seq_x, seq_y = sequence[None,i:end_ix], seq_yy[i:end_ix]
+        '''for j in range(n_steps):
+            plt.imshow(seq_x[j])
+            plt.show()'''
         yield np.array(seq_x, dtype=np.float32) , np.array(seq_y, dtype=np.float32)
 
-def build_dataset_train(train_x,train_y):
+def build_dataset_train(train_x,train_y,dati_dir):
     # Scrittura del Dataset
-    f_t = h5py.File('dati_128/X_train.hdf5', 'w')
+    f_t = h5py.File(dati_dir + '/X_train.hdf5', 'w')
     X_train = f_t.create_dataset("train_X", data=train_x)
     f_t.close()
 
-    f = h5py.File('dati_128/y_train.hdf5', 'w')
+    f = h5py.File(dati_dir + '/y_train.hdf5', 'w')
     y_train = f.create_dataset("y_train", data=train_y)
     f.close()
 
     return  X_train,y_train
 
-def build_dataset_test(test_x,test_y):
-    f = h5py.File('dati_128/X_test.hdf5', 'w')
+def build_dataset_test(test_x,test_y,dati_dir):
+    f = h5py.File(dati_dir+'/X_test.hdf5', 'w')
     X_test = f.create_dataset("X_test", data=test_x)
     f.close()
 
-    f = h5py.File('dati_128/y_test.hdf5', 'w')
+    f = h5py.File(dati_dir+'/y_test.hdf5', 'w')
     y_test = f.create_dataset("y_test", data=test_y)
     f.close()
 
@@ -50,24 +60,30 @@ def build_dataset_test(test_x,test_y):
 
 train_dir = "processed/train/"
 test_dir = "processed/test/"
+dati_dir = 'dati_128'
+#C'è un problema con le grandi sequenza. Se seleziono una sequenza larga, il SW viene automaticamente killato
+seq_len = 70
+img_width, img_height = 128,128
+channel = 1
+print("\n\n")
 
 '''train_x, train_y = get_data(train_dir)
 test_x, test_y= get_data(test_dir)
 
-X_train, y_train = build_dataset_train(train_x,train_y)
-X_test, y_test = build_dataset_test(test_x,test_y)'''
+X_train, y_train = build_dataset_train(train_x,train_y,dati_dir)
+X_test, y_test = build_dataset_test(test_x,test_y,dati_dir)'''
 
 #Lettura dei datasets
-X_train_f = h5py.File('dati_64/X_train.hdf5', 'r')
+X_train_f = h5py.File(dati_dir+'/X_train.hdf5', 'r')
 X_train = X_train_f.get('train_X').value
 
-Y_train_f = h5py.File('dati_64/y_train.hdf5', 'r')
+Y_train_f = h5py.File(dati_dir+'/y_train.hdf5', 'r')
 y_train = Y_train_f.get('y_train').value
 
-X_test_f = h5py.File('dati_64/X_test.hdf5', 'r')
+X_test_f = h5py.File(dati_dir+'/X_test.hdf5', 'r')
 X_test = X_test_f.get('X_test').value
 
-Y_test_f = h5py.File('dati_64/y_test.hdf5', 'r')
+Y_test_f = h5py.File(dati_dir+'/y_test.hdf5', 'r')
 y_test = Y_test_f.get('y_test').value
 
 #NON CONSIDERARE - CREAZIONE DI UN SUBSET DI DATI E SALVATAGGIO
@@ -107,13 +123,10 @@ print("y train ",y_train.shape)
 print("x_test ",X_test.shape)
 print("y test",y_test.shape)
 
-#C'è un problema con le grandi sequenza. Se seleziono una sequenza larga, il SW viene automaticamente killato
-seq_len = 15
-print("\n\n")
 
 #Utilizzo dimensioni 64x64 come prova. Qunado il training si avvierà, caricherò le 256x256
-train_dataset = tf.data.Dataset.from_generator(split_sequences, (tf.float32, tf.float32), output_shapes=([None,15,64, 64, 1], [15,]), args=(X_train, y_train, seq_len))
-test_dataset = tf.data.Dataset.from_generator(split_sequences, (tf.float32, tf.float32), output_shapes=([None,15,64, 64, 1], [15,]), args=(X_test, y_test, seq_len))
+train_dataset = tf.data.Dataset.from_generator(split_sequences, (tf.float32, tf.int16), output_shapes=([None,seq_len,img_width, img_height, channel], [seq_len,]), args=(X_train, y_train, seq_len))
+test_dataset = tf.data.Dataset.from_generator(split_sequences, (tf.float32, tf.int16), output_shapes=([None,seq_len,img_width, img_height, channel], [seq_len,]), args=(X_test, y_test, seq_len))
 
 
 '''for Xb, yb in train_dataset:
@@ -121,27 +134,6 @@ test_dataset = tf.data.Dataset.from_generator(split_sequences, (tf.float32, tf.f
     print(type(train_dataset))
     time.sleep(2)'''
 
-'''X_train, y_train = split_sequences(X_train,y_train, seq_len)
-y_train = y_train[:,0]
-print("++++***shape dopo lo split [TRAIN X & Y] ",X_train.shape,y_train.shape)
-
-
-X_test,y_test = split_sequences(X_test,y_test, seq_len)
-y_test = y_test[:,0]
-print("++++***shape dopo lo split [TEST X & Y] ",X_test.shape,y_test.shape)
-
-X_train = X_train.reshape(X_train.shape[0],seq_len, img_width, img_height, 1)
-X_test = X_test.reshape(X_test.shape[0], seq_len, img_width, img_height, 1)
-#Provo a stampare la prima immagine alla posizione X(1,5,128,128,1)
-
-print("\n\n")
-print("Dopo il reshape [X_train]: ",X_train.shape)
-print("Dopo il reshape [X_test]: ",X_test.shape)
-print("\n\n")
-
-'''
-
-img_width, img_height = 64,64
 input_shape=(seq_len,img_width,img_height,1)
 model = MiniModel(input_shape)
 model.summary()
@@ -154,7 +146,7 @@ steps_per_epoch = ceil(10922 / bs)
 
 #opt = keras.optimizers.Adam(learning_rate=0.01)
 
-model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+model.compile(loss='binary_crossentropy', optimizer=sgd, metrics=['accuracy'])
 history = model.fit(train_dataset, epochs=epochs, validation_data=test_dataset)
 
 plt.plot(history.history['accuracy'])

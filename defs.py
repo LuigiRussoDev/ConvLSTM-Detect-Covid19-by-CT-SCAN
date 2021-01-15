@@ -1,3 +1,4 @@
+import imageio
 import tensorflow as tf
 from tensorflow.keras.layers import Input, MaxPooling2D, BatchNormalization, Activation, Conv2D, Flatten, Dense, add, Dropout, \
     AveragePooling2D,Conv3D,MaxPooling3D,GlobalAveragePooling3D
@@ -24,13 +25,6 @@ def MiniModel(input_shape):
     net = ConvLSTM2D(filters=32, kernel_size=(3, 3), activation='relu',
                      return_sequences=True, use_bias=False, data_format='channels_last')(images)
     net = BatchNormalization()(net)
-
-    '''net = Conv2D(filters=32,kernel_size=(3,3),padding="same",activation='relu')(images)
-    net = BatchNormalization()(net)
-    net = MaxPooling2D(pool_size=(2,2))(net)
-    net = Conv2D(filters=64,kernel_size=(3,3),padding="same",activation='relu')(net)
-    net = BatchNormalization()(net)'''
-
     net = Flatten()(net)
     net = Dense(1,activation='sigmoid')(net)
     model = Model(inputs=images, outputs=net)
@@ -147,10 +141,11 @@ def get_data(folder):
                 label = 1
             for image_filename in tqdm(os.listdir(folder + folderName)):
                 #img_file = cv2.imread(folder + folderName + '/' + image_filename,-1)
-                img_file = tiff.imread(folder + folderName + '/' + image_filename)
+                #img_file = tiff.imread(folder + folderName + '/' + image_filename)
+                img_file = imageio.imread(str(folder + folderName + '/' + image_filename))
                 if img_file is not None:
-                    img_file = skimage.transform.resize(img_file, (128,128, 1))
-                    # img_file = scipy.misc.imresize(arr=img_file, size=(150, 150, 3))
+                    #img_file = skimage.transform.resize(img_file, (256,256, 1))
+                    img_file = skimage.transform.resize(img_file, (256,256,1))
                     img_arr = np.asarray(img_file)
                     X.append(img_arr)
                     y.append(label)
